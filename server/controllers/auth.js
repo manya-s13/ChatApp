@@ -123,5 +123,37 @@ export const getUsers = async (req, res) => {
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch users!!" });
     }
-  };
+};
+
+export const updateProfile = async (req, res) => {
+    const { name, email, password } = req.body;
+    const userId = req.user._id;
+
+    if (!name || !email) {
+        return res.status(400).json({ message: "Name and email are required" });
+    }
+
+    try {
+        const updatedUser = await User.findByIdAndUpdate(
+            userId,
+            { name, email, password },
+            { new: true }
+        );
+
+        if (!updatedUser) {
+            return res.status(404).json({ message: "User not found" });
+        }
+
+        res.status(200).json({
+            message: "Profile updated successfully",
+            user: {
+                _id: updatedUser._id,
+                name: updatedUser.name,
+                email: updatedUser.email
+            }
+        });
+    } catch (error) {
+        res.status(500).json({ message: "Profile update failed", error: error.message });
+    }
+};
   

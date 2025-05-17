@@ -169,32 +169,32 @@ const Chat = () => {
   };
 
   return (
-    <div className="flex h-screen w-screen bg-gray-900 text-white">
+    <div className="flex h-screen w-screen bg-black text-white">
       {/* Mobile sidebar toggle */}
       <div className={`md:hidden fixed top-4 ${sidebarOpen ? 'left-64' : 'left-4'} z-50`}>
         <button 
           onClick={() => setSidebarOpen(!sidebarOpen)}
-          className="bg-gray-700 rounded-full p-2 text-white"
+          className="bg-black rounded-full p-2 text-white"
         >
           {sidebarOpen ? <ChevronLeft size={20} /> : <Menu size={20} />}
         </button>
       </div>
 
       {/* Sidebar */}
-      <div className={`${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 transition-transform duration-300 ease-in-out fixed md:relative z-40 w-64 h-full bg-gray-800 shadow-lg`}>
+      <div className={`${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 transition-transform duration-300 ease-in-out fixed md:relative z-40 w-64 h-full bg-[#212121] backdrop-blur-md shadow-lg`}>
         {/* Logo */}
-        <div className="flex items-center justify-between px-4 py-4 border-b border-gray-700">
+        <div className="flex items-center justify-between px-4 py-5.5">
           <div className="flex items-center">
             {/* <div className="h-8 w-8 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold mr-2"> */}
               <img src='/logo.png' alt='logo' className='h-8 w-8' />
             {/* </div> */}
-            <h1 className="text-xl font-bold pl-2">Direct Chat</h1>
+            <h1 className="text-xl font-semibold pl-2">Direct Chat</h1>
           </div>
         </div>
 
         {/* Users list */}
         <div className="overflow-y-auto h-full pb-20">
-          <h2 className="text-gray-400 text-sm font-medium px-4 py-2 sticky top-0 bg-gray-800">
+          <h2 className="text-gray-400 text-sm font-medium px-4 py-2 sticky top-0 bg-[#212121]">
             Conversations
           </h2>
           {userList.length > 0 ? (
@@ -202,9 +202,9 @@ const Chat = () => {
               <div 
                 key={user._id} 
                 onClick={() => setSelectedUser(user)}
-                className={`flex items-center px-4 py-3 cursor-pointer hover:bg-gray-700 transition-colors duration-200 ${selectedUser && selectedUser._id === user._id ? 'bg-gray-700' : ''}`}
+                className={`flex items-center px-4 py-3 cursor-pointer hover:bg-gray-600 transition-colors duration-200 ${selectedUser && selectedUser._id === user._id ? 'bg-gray-600' : ''}`}
               >
-                <div className="h-10 w-10 rounded-full bg-gray-600 flex items-center justify-center mr-3">
+                <div className="h-10 w-10 rounded-full bg-violet-500 flex items-center justify-center mr-3">
                   {user.name[0].toUpperCase()}
                 </div>
                 <div>
@@ -223,11 +223,12 @@ const Chat = () => {
 
       {/* Main content */}
       <div className="flex-1 flex flex-col overflow-hidden relative">
+
         {/* Header */}
-        <div className="bg-gray-800 p-4 flex items-center justify-between shadow-md">
+        <div className="bg-[#3b3b3b] p-4 flex items-center justify-between shadow-md">
           {selectedUser ? (
             <div className="flex items-center">
-              <div className="h-10 w-10 rounded-full bg-gray-600 flex items-center justify-center mr-3">
+              <div className="h-10 w-10 rounded-full bg-violet-500 flex items-center justify-center mr-3">
                 {selectedUser.name[0].toUpperCase()}
               </div>
               <div>
@@ -252,7 +253,7 @@ const Chat = () => {
             
             {/* Dropdown menu */}
             {menuOpen && (
-              <div className="absolute right-0 mt-2 w-48 bg-gray-800 rounded-md shadow-lg z-50 py-1">
+              <div className="absolute right-0 mt-2 w-48 bg-gray-600 rounded-md shadow-lg z-50 py-1">
                 <button 
                   onClick={handleEditProfile}
                   className="flex items-center w-full px-4 py-2 text-sm hover:bg-gray-700"
@@ -273,31 +274,48 @@ const Chat = () => {
         </div>
 
         {/* Messages area */}
-        <div className="flex-1 overflow-y-auto p-4 bg-gray-900">
+        <div className="flex-1 overflow-y-auto px-4 pt-4 pb-2 bg-black/60">
           {selectedUser ? (
             messages.length > 0 ? (
               <div className="flex flex-col space-y-3">
                 {messages.map((msg, index) => {
                   const isMine = msg.sender === currentUser?._id;
+                  const messageDate = new Date(msg.timestamp).toDateString();
+                  const prevMessageDate =
+                  index > 0 ? new Date(messages[index - 1].timestamp).toDateString() : null;
+              
+                const showDate =
+                  index === 0 || messageDate !== prevMessageDate;
+              
                   return (
-                    <div 
-                      key={index} 
-                      className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}
+
+                    <React.Fragment 
+                      key={index} >
+                      {showDate && (
+                        <div className="flex justify-center my-4">
+                          <span className="text-sm text-gray-400 bg-gray-800 px-3 py-1 rounded-full">
+                            {new Date(msg.timestamp).toLocaleDateString(undefined, {
+                              month: 'long',
+                              day: 'numeric',
+                              year: 'numeric',
+                            })}
+                          </span>
+                        </div>
+                      )}
+                      <div className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}
                     >
                       <div 
                         className={`max-w-xs md:max-w-md lg:max-w-lg px-4 py-2 rounded-lg ${
-                          isMine ? 'bg-indigo-600' : 'bg-gray-700'
+                          isMine ? 'bg-indigo-800' : 'bg-gray-600'
                         }`}
                       >
                         <p>{msg.content}</p>
                         <span className="text-xs text-gray-400 block mt-1">
-                          {new Date(msg.createdAt || Date.now()).toLocaleTimeString([], { 
-                            hour: '2-digit', 
-                            minute: '2-digit' 
-                          })}
+                        {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                         </span>
+                        </div>
                       </div>
-                    </div>
+                    </React.Fragment>
                   );
                 })}
                 <div ref={messageEndRef} />
@@ -320,7 +338,7 @@ const Chat = () => {
 
         {/* Message input */}
         {selectedUser && (
-          <div className="bg-gray-800 p-4 border-t border-gray-700">
+          <div className="bg-[#3b3b3b] p-4 border-t border-[#3b3b3b]">
             <div className="flex items-center space-x-2">
               <input
                 type="text"
@@ -328,13 +346,13 @@ const Chat = () => {
                 onChange={(e) => setMessage(e.target.value)}
                 onKeyDown={handleKeyDown}
                 placeholder="Type your message..."
-                className="flex-1 bg-gray-700 border border-gray-600 rounded-full px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-white"
+                className="flex-1 bg-black/100 border border-black/60 rounded-full px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-white"
               />
               <button
                 onClick={sendMessage}
                 disabled={!message.trim()}
                 className={`p-2 rounded-full ${
-                  message.trim() ? 'bg-indigo-600 hover:bg-indigo-700' : 'bg-gray-700 cursor-not-allowed'
+                  message.trim() ? 'bg-indigo-600 hover:bg-indigo-700' : 'bg-black/100 cursor-not-allowed'
                 } transition-colors duration-200`}
               >
                 <Send size={20} />
