@@ -113,14 +113,15 @@ export const verifyAuth = async (req, res) => {
         user: {
             _id: req.user._id,
             name: req.user.name,
-            email: req.user.email
+            email: req.user.email,
+            profilePicture: req.user.profilePicture || ''
           }
      });
   };
 
 export const getUsers = async (req, res) => {
     try {
-      const users = await User.find({ _id: { $ne: req.user._id } }).select('name');
+      const users = await User.find({ _id: { $ne: req.user._id } }).select('name profilePicture');
       res.status(200).json(users);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch users!!" });

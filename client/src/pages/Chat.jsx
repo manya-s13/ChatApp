@@ -6,10 +6,6 @@ import io from 'socket.io-client';
 // Icons
 import { 
   Menu, 
-  X, 
-  MoreVertical, 
-  LogOut, 
-  User, 
   Send, 
   ChevronLeft
 } from 'lucide-react';
@@ -35,20 +31,6 @@ const Chat = () => {
     scrollToBottom();
   }, [messages]);
 
-  const handleLogout = async () => {
-    try {
-      await axios.post('http://localhost:3000/api/auth/logout', {}, { withCredentials: true });
-      navigate('/');
-    } catch (error) {
-      console.error('Logout failed:', error);
-    }
-    setMenuOpen(false);
-  };
-
-  const handleEditProfile = () => {
-    navigate('/profile');
-    setMenuOpen(false);
-  };
 
   // Mock function to fetch users, replace with your actual implementation
   const fetchUsers = async () => {
@@ -169,7 +151,7 @@ const Chat = () => {
   };
 
   return (
-    <div className="flex h-screen w-screen bg-black text-white">
+    <div className="flex h-full w-full bg-black text-white overflow-hidden">
       {/* Mobile sidebar toggle */}
       <div className={`md:hidden fixed top-4 ${sidebarOpen ? 'left-64' : 'left-4'} z-50`}>
         <button 
@@ -182,21 +164,16 @@ const Chat = () => {
 
       {/* Sidebar */}
       <div className={`${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 transition-transform duration-300 ease-in-out fixed md:relative z-40 w-64 h-full bg-[#212121] backdrop-blur-md shadow-lg`}>
-        {/* Logo */}
+      <h2 className="text-gray-400 text-md font-medium px-4 pt-9 sticky bg-[#212121]">
+            Conversations
+          </h2>
         <div className="flex items-center justify-between px-4 py-5.5">
-          <div className="flex items-center">
-            {/* <div className="h-8 w-8 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold mr-2"> */}
-              <img src='/logo.png' alt='logo' className='h-8 w-8' />
-            {/* </div> */}
-            <h1 className="text-xl font-semibold pl-2">Direct Chat</h1>
-          </div>
+          
         </div>
 
         {/* Users list */}
         <div className="overflow-y-auto h-full pb-20">
-          <h2 className="text-gray-400 text-sm font-medium px-4 py-2 sticky top-0 bg-[#212121]">
-            Conversations
-          </h2>
+          
           {userList.length > 0 ? (
             userList.map((user) => (
               <div 
@@ -204,9 +181,21 @@ const Chat = () => {
                 onClick={() => setSelectedUser(user)}
                 className={`flex items-center px-4 py-3 cursor-pointer hover:bg-gray-600 transition-colors duration-200 ${selectedUser && selectedUser._id === user._id ? 'bg-gray-600' : ''}`}
               >
-                <div className="h-10 w-10 rounded-full bg-violet-500 flex items-center justify-center mr-3">
-                  {user.name[0].toUpperCase()}
-                </div>
+                {user.profilePicture ? (
+                  <img 
+                    src={user.profilePicture} 
+                    alt={user.name} 
+                    className="h-10 w-10 rounded-full object-cover mr-3"
+                    onError={(e) => {
+                      e.target.onerror = null;
+                      e.target.src = '/avatar.jpg';
+                    }}
+                  />
+                ) : (
+                  <div className="h-10 w-10 rounded-full bg-violet-500 flex items-center justify-center mr-3">
+                    {user.name[0].toUpperCase()}
+                  </div>
+                )}
                 <div>
                   <h3 className="font-medium">{user.name}</h3>
                   <p className="text-sm text-gray-400">
@@ -224,44 +213,7 @@ const Chat = () => {
       {/* Main content */}
       <div className="flex-1 flex flex-col overflow-hidden relative">
 
-        {/* Nav Bar */}
-      <div className="bg-[#212121] p-4 flex items-center justify-between shadow-md">
-        <div className="flex items-center">
-          <img src={currentUser?.profilePic || '/avatar.jpg'}  alt='avatar' height={50} width={50} className='rounded-full' />
-          <h2 className="font-medium pl-2">{currentUser?.name}</h2>
-        </div>
-
-        {/* Menu button */}
-        <div className="relative">
-          <button 
-            onClick={() => setMenuOpen(!menuOpen)}
-            className="p-2 rounded-full hover:bg-gray-700"
-          >
-            <MoreVertical size={20} />
-          </button>
-
-          {/* Dropdown menu */}
-          {menuOpen && (
-            <div className="absolute right-0 mt-2 w-48 bg-gray-600 rounded-md shadow-lg z-50 py-1">
-              <button 
-                onClick={handleEditProfile}
-                className="flex items-center w-full px-4 py-2 text-sm hover:bg-gray-700"
-              >
-                <User size={16} className="mr-2" />
-                Edit Profile
-              </button>
-              <button 
-                onClick={handleLogout}
-                className="flex items-center w-full px-4 py-2 text-sm hover:bg-gray-700 text-red-400"
-              >
-                <LogOut size={16} className="mr-2" />
-                Logout
-              </button>
-            </div>
-          )}
-        </div>
-      </div>
-
+      
 
         {/* Header */}
         <div className="bg-[#3b3b3b] p-4 flex items-center justify-between shadow-md">

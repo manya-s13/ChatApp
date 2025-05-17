@@ -11,7 +11,8 @@ function Profile() {
   const [message, setMessage] = useState({ text: '', type: '' })
   const [isUploading, setIsUploading] = useState(false);
 
-  const [profilePic, setProfilePic] = useState('/avatar.jpg')
+  const [profilePic, setProfilePic] = useState('/avatar.jpg');
+
   const fileInputRef = useRef(null)
 
   const handleImageUpload = async (e) => {
@@ -70,6 +71,7 @@ function Profile() {
         setName(userData.user.name || '')
         setDisplayName(userData.user.name || '')
         setEmail(userData.user.email || '')
+        setProfilePic(userData.user.profilePicture || '/avatar.jpg')
       } catch (error) {
         console.error('Error fetching user data:', error)
       }
