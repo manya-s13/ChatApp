@@ -21,15 +21,27 @@ export const sendMessage = async (req, res) => {
     const message = new Message({ sender, receiver, content });
     const savedMessage = await message.save();
 
-    req.app.get('io').to(receiver).emit('newMessage', savedMessage);
-
-
+    try {
+      const io = req.app.get('io');
+      if (io) {
+        io.to(receiver).emit('newMessage', savedMessage);
+      }
+    } catch (socketError) {
+      console.error("Socket.io error:", socketError);
+      // Continue execution even if socket emission fails
+    }
+    
     res.status(201).json({
       message: "Message sent successfully",
       data: savedMessage,
     });
   } catch (error) {
-    res.status(500).json({ error: "Message sending failed", details: error.message });
+    console.error("Message sending failed:", error);
+    res.status(500).json({ 
+      error: "Message sending failed", 
+      details: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
   }
   };
   

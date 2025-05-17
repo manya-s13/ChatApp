@@ -1,9 +1,18 @@
-import React, { useState, useEffect } from 'react';
-import { Container, TextField, Button, Box, Paper, Typography, Grid, AppBar, Toolbar } from '@mui/material';
-import UserList from './UserList';
-import io from 'socket.io-client';
-import axios from '../api/axios';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import axios from '../api/axios';
+import io from 'socket.io-client';
+
+// Icons
+import { 
+  Menu, 
+  X, 
+  MoreVertical, 
+  LogOut, 
+  User, 
+  Send, 
+  ChevronLeft
+} from 'lucide-react';
 
 const Chat = () => {
   const [message, setMessage] = useState('');
@@ -11,20 +20,50 @@ const Chat = () => {
   const [socket, setSocket] = useState(null);
   const [selectedUser, setSelectedUser] = useState(null);
   const [currentUser, setCurrentUser] = useState(null);
+  const [userList, setUserList] = useState([]);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const messageEndRef = useRef(null);
   const navigate = useNavigate();
+
+  // Scrolls to the bottom of messages
+  const scrollToBottom = () => {
+    messageEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
 
   const handleLogout = async () => {
     try {
       await axios.post('http://localhost:3000/api/auth/logout', {}, { withCredentials: true });
-      navigate('/login');
+      navigate('/');
     } catch (error) {
       console.error('Logout failed:', error);
     }
+    setMenuOpen(false);
   };
 
+  const handleEditProfile = () => {
+    navigate('/profile');
+    setMenuOpen(false);
+  };
+
+  // Mock function to fetch users, replace with your actual implementation
+  const fetchUsers = async () => {
+    try {
+      const response = await axios.get('http://localhost:3000/api/auth/users', { withCredentials: true });
+      setUserList(response.data || []);
+    } catch (error) {
+      console.error('Failed to fetch users:', error);
+    }
+  };
+
+  // Handle incoming socket messages
   useEffect(() => {
     const checkAuth = async () => {
-      try {
+      try {1
         const response = await axios.get('http://localhost:3000/api/auth/verify', { withCredentials: true });
         setCurrentUser(response.data.user);
       } catch (error) {
@@ -32,105 +71,279 @@ const Chat = () => {
       }
     };
     checkAuth();
+    fetchUsers();
 
     const newSocket = io('http://localhost:3000', {
-        withCredentials: true
-      });
+      withCredentials: true
+    });
     setSocket(newSocket);
 
     newSocket.on('newMessage', (message) => {
-      setMessages((prev) => [...prev, message]);
+      // Add the new message to both current messages and cached messages
+      if (selectedUser && (message.sender === selectedUser._id || message.receiver === selectedUser._id)) {
+        setMessages(prev => [...prev, message]);
+      }
+      
+      // Update conversations map
+      const conversationId = message.sender === currentUser?._id ? message.receiver : message.sender;
+      setConversationsMap(prev => ({
+        ...prev,
+        [conversationId]: [...(prev[conversationId] || []), message]
+      }));
     });
 
     return () => newSocket.disconnect();
-  }, [navigate]);
+  }, [navigate, currentUser]);
+
+  // Store messages for each conversation
+  const [conversationsMap, setConversationsMap] = useState({});
 
   useEffect(() => {
     if (selectedUser) {
       const fetchMessages = async () => {
         try {
-            const response = await axios.get(`http://localhost:3000/api/messages/${selectedUser._id}/${selectedUser._id}`, 
-            { withCredentials: true }
-          );
-          setMessages(response.data);
+          // Check if we already have cached messages for this user
+          if (!conversationsMap[selectedUser._id]) {
+            const response = await axios.get(`http://localhost:3000/api/messages/${currentUser?._id}/${selectedUser._id}`, 
+              { withCredentials: true }
+            );
+            // Update the conversations map with the fetched messages
+            setConversationsMap(prev => ({
+              ...prev,
+              [selectedUser._id]: response.data
+            }));
+            setMessages(response.data);
+          } else {
+            // Use cached messages
+            setMessages(conversationsMap[selectedUser._id]);
+          }
         } catch (error) {
           console.error('Failed to fetch messages:', error);
         }
       };
       fetchMessages();
+    } else {
+      setMessages([]);
     }
-  }, [selectedUser]);
+  }, [selectedUser, currentUser, conversationsMap]);
 
   const sendMessage = async () => {
     if (!selectedUser || !message.trim()) return;
 
     try {
-        const response = await axios.post('http://localhost:3000/api/messages/send', {
-          content: message,
-          receiver: selectedUser._id
-        }, { withCredentials: true });
-        
-        setMessages(prev => [...prev, response.data.data]);
-        setMessage('');
-        
-        if (socket) {
-            socket.emit('sendMessage', {
-              sender: response.data.data.sender,
-              receiver: selectedUser._id,
-              content: message
-            });
-        }
-      } catch (error) {
-        console.error('Failed to send message:', error);
+      const response = await axios.post('http://localhost:3000/api/messages/send', {
+        content: message,
+        receiver: selectedUser._id
+      }, { withCredentials: true });
+      
+      const newMessage = response.data.data;
+      
+      // Update both the current messages and the cached messages
+      setMessages(prev => [...prev, newMessage]);
+      
+      // Update conversation map to store the new message
+      setConversationsMap(prev => ({
+        ...prev,
+        [selectedUser._id]: [...(prev[selectedUser._id] || []), newMessage]
+      }));
+      
+      setMessage('');
+      
+      if (socket) {
+        socket.emit('sendMessage', {
+          sender: newMessage.sender,
+          receiver: selectedUser._id,
+          content: message
+        });
       }
+    } catch (error) {
+      console.error('Failed to send message:', error);
+    }
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
   };
 
   return (
-    <Box sx={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
-      <AppBar position="static">
-        <Toolbar>
-          <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
-            Chat App
-          </Typography>
-          <Button color="inherit" onClick={handleLogout}>
-            Logout
-          </Button>
-        </Toolbar>
-      </AppBar>
-      <Container maxWidth="lg" sx={{ flexGrow: 1, py: 2 }}>
-        <Grid container spacing={2} sx={{ height: '100%' }}>
-          <Grid item size={3}>
-            <UserList onSelectUser={setSelectedUser} selectedUser={selectedUser} />
-          </Grid>
-          <Grid item size={9}>
-            <Paper sx={{ height: '100%', p: 2, display: 'flex', flexDirection: 'column' }}>
-              <Typography variant="h6" sx={{ mb: 2 }}>
-                {selectedUser ? `Chat with ${selectedUser.name}` : 'Select a user to chat'}
-              </Typography>
-              <Box sx={{ flexGrow: 1, overflow: 'auto', mb: 2 }}>
-                {messages.map((msg, index) => (
-                  <Box key={index} sx={{ mb: 1 }}>
-                    <Typography>{msg.content}</Typography>
-                  </Box>
-                ))}
-              </Box>
-              <Box sx={{ display: 'flex', gap: 1 }}>
-                <TextField
-                  fullWidth
-                  value={message}
-                  onChange={(e) => setMessage(e.target.value)}
-                  placeholder="Type a message"
-                  disabled={!selectedUser}
-                />
-                <Button variant="contained" onClick={sendMessage} disabled={!selectedUser}>
-                  Send
-                </Button>
-              </Box>
-            </Paper>
-          </Grid>
-        </Grid>
-      </Container>
-    </Box>
+    <div className="flex h-screen w-screen bg-gray-900 text-white">
+      {/* Mobile sidebar toggle */}
+      <div className={`md:hidden fixed top-4 ${sidebarOpen ? 'left-64' : 'left-4'} z-50`}>
+        <button 
+          onClick={() => setSidebarOpen(!sidebarOpen)}
+          className="bg-gray-700 rounded-full p-2 text-white"
+        >
+          {sidebarOpen ? <ChevronLeft size={20} /> : <Menu size={20} />}
+        </button>
+      </div>
+
+      {/* Sidebar */}
+      <div className={`${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 transition-transform duration-300 ease-in-out fixed md:relative z-40 w-64 h-full bg-gray-800 shadow-lg`}>
+        {/* Logo */}
+        <div className="flex items-center justify-between px-4 py-4 border-b border-gray-700">
+          <div className="flex items-center">
+            {/* <div className="h-8 w-8 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold mr-2"> */}
+              <img src='/logo.png' alt='logo' className='h-8 w-8' />
+            {/* </div> */}
+            <h1 className="text-xl font-bold pl-2">Direct Chat</h1>
+          </div>
+        </div>
+
+        {/* Users list */}
+        <div className="overflow-y-auto h-full pb-20">
+          <h2 className="text-gray-400 text-sm font-medium px-4 py-2 sticky top-0 bg-gray-800">
+            Conversations
+          </h2>
+          {userList.length > 0 ? (
+            userList.map((user) => (
+              <div 
+                key={user._id} 
+                onClick={() => setSelectedUser(user)}
+                className={`flex items-center px-4 py-3 cursor-pointer hover:bg-gray-700 transition-colors duration-200 ${selectedUser && selectedUser._id === user._id ? 'bg-gray-700' : ''}`}
+              >
+                <div className="h-10 w-10 rounded-full bg-gray-600 flex items-center justify-center mr-3">
+                  {user.name[0].toUpperCase()}
+                </div>
+                <div>
+                  <h3 className="font-medium">{user.name}</h3>
+                  <p className="text-sm text-gray-400">
+                    {user.status || 'Online'}
+                  </p>
+                </div>
+              </div>
+            ))
+          ) : (
+            <div className="text-gray-400 text-sm px-4 py-2">No users available</div>
+          )}
+        </div>
+      </div>
+
+      {/* Main content */}
+      <div className="flex-1 flex flex-col overflow-hidden relative">
+        {/* Header */}
+        <div className="bg-gray-800 p-4 flex items-center justify-between shadow-md">
+          {selectedUser ? (
+            <div className="flex items-center">
+              <div className="h-10 w-10 rounded-full bg-gray-600 flex items-center justify-center mr-3">
+                {selectedUser.name[0].toUpperCase()}
+              </div>
+              <div>
+                <h2 className="font-medium">{selectedUser.name}</h2>
+                <p className="text-sm text-gray-400">
+                  {selectedUser.status || 'Online'}
+                </p>
+              </div>
+            </div>
+          ) : (
+            <h2 className="font-medium">Select a conversation</h2>
+          )}
+
+          {/* Menu button */}
+          <div className="relative">
+            <button 
+              onClick={() => setMenuOpen(!menuOpen)}
+              className="p-2 rounded-full hover:bg-gray-700"
+            >
+              <MoreVertical size={20} />
+            </button>
+            
+            {/* Dropdown menu */}
+            {menuOpen && (
+              <div className="absolute right-0 mt-2 w-48 bg-gray-800 rounded-md shadow-lg z-50 py-1">
+                <button 
+                  onClick={handleEditProfile}
+                  className="flex items-center w-full px-4 py-2 text-sm hover:bg-gray-700"
+                >
+                  <User size={16} className="mr-2" />
+                  Edit Profile
+                </button>
+                <button 
+                  onClick={handleLogout}
+                  className="flex items-center w-full px-4 py-2 text-sm hover:bg-gray-700 text-red-400"
+                >
+                  <LogOut size={16} className="mr-2" />
+                  Logout
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Messages area */}
+        <div className="flex-1 overflow-y-auto p-4 bg-gray-900">
+          {selectedUser ? (
+            messages.length > 0 ? (
+              <div className="flex flex-col space-y-3">
+                {messages.map((msg, index) => {
+                  const isMine = msg.sender === currentUser?._id;
+                  return (
+                    <div 
+                      key={index} 
+                      className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}
+                    >
+                      <div 
+                        className={`max-w-xs md:max-w-md lg:max-w-lg px-4 py-2 rounded-lg ${
+                          isMine ? 'bg-indigo-600' : 'bg-gray-700'
+                        }`}
+                      >
+                        <p>{msg.content}</p>
+                        <span className="text-xs text-gray-400 block mt-1">
+                          {new Date(msg.createdAt || Date.now()).toLocaleTimeString([], { 
+                            hour: '2-digit', 
+                            minute: '2-digit' 
+                          })}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+                <div ref={messageEndRef} />
+              </div>
+            ) : (
+              <div className="h-full flex items-center justify-center">
+                <p className="text-gray-400">No messages yet. Start a conversation!</p>
+              </div>
+            )
+          ) : (
+            <div className="h-full flex flex-col items-center justify-center">
+              <img src='/logo.png' alt='logo' width={300} height={300}/>
+              <h3 className="text-xl font-medium mb-2">Welcome to Direct Chat</h3>
+              <p className="text-gray-400 text-center max-w-md">
+                Select a User to start chatting
+              </p>
+            </div>
+          )}
+        </div>
+
+        {/* Message input */}
+        {selectedUser && (
+          <div className="bg-gray-800 p-4 border-t border-gray-700">
+            <div className="flex items-center space-x-2">
+              <input
+                type="text"
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder="Type your message..."
+                className="flex-1 bg-gray-700 border border-gray-600 rounded-full px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-white"
+              />
+              <button
+                onClick={sendMessage}
+                disabled={!message.trim()}
+                className={`p-2 rounded-full ${
+                  message.trim() ? 'bg-indigo-600 hover:bg-indigo-700' : 'bg-gray-700 cursor-not-allowed'
+                } transition-colors duration-200`}
+              >
+                <Send size={20} />
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
   );
 };
 
