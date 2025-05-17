@@ -1,28 +1,75 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { Camera } from 'lucide-react'
 
 function Profile() {
   // State for user data
   const [name, setName] = useState('')
+  const [displayName, setDisplayName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [message, setMessage] = useState({ text: '', type: '' })
+  const [isUploading, setIsUploading] = useState(false);
+
+  const [profilePic, setProfilePic] = useState('/avatar.jpg')
+  const fileInputRef = useRef(null)
+
+  const handleImageUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      setMessage({ text: 'Please select an image file', type: 'error' });
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append('profilePicture', file);
+    
+    try {
+      setIsUploading(true);
+      const response = await fetch('http://localhost:3000/api/auth/update', {
+        method: 'PUT',
+        credentials: 'include',
+        headers: {
+          'Accept': 'application/json',
+        },
+        body: formData,
+      });
+
+      const data = await response.json();
+      
+      if (!response.ok) throw new Error(data.message || 'Failed to upload image');
+      
+      if (data.user?.profilePicture) {
+        setProfilePic(data.user.profilePicture);
+      }
+      
+      setMessage({ text: 'Profile picture updated successfully!', type: 'success' });
+    } catch (error) {
+      setMessage({ text: error.message, type: 'error' });
+    }
+    finally{
+      setIsUploading(false);
+    }
+  };
+
 
   // Fetch user data on component mount
   useEffect(() => {
     const fetchUserData = async () => {
       try {
         // Assuming you have an API endpoint to get user data
-        const response = await fetch('http://localhost:3000/api/user/profile', {
+        const response = await fetch('http://localhost:3000/api/auth/verify', {
           credentials: 'include' // Equivalent to withCredentials: true
         })
         
         if (!response.ok) throw new Error('Failed to fetch user data')
         
         const userData = await response.json()
-        setName(userData.name || '')
-        setEmail(userData.email || '')
+        setName(userData.user.name || '')
+        setDisplayName(userData.user.name || '')
+        setEmail(userData.user.email || '')
       } catch (error) {
         console.error('Error fetching user data:', error)
       }
@@ -49,7 +96,8 @@ function Profile() {
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
         if (!emailRegex.test(email)) {
           setMessage({ text: 'Please enter a valid email address', type: 'error' })
-          return
+          setIsLoading(false);
+          return;
         }
         currentData.email = email.trim()
       }
@@ -61,7 +109,7 @@ function Profile() {
       }
       
       // Send the update request
-      const response = await fetch('http://localhost:3000/api/user/update', {
+      const response = await fetch('http://localhost:3000/api/auth/update', {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json'
@@ -80,6 +128,7 @@ function Profile() {
 
       // Success! Clear password and show success message
       setPassword('')
+      setDisplayName(name)
       setMessage({ text: 'Profile updated successfully!', type: 'success' })
     } catch (error) {
       setMessage({ text: error.message || 'Failed to update profile', type: 'error' })
@@ -97,14 +146,29 @@ function Profile() {
         {/* Profile Image */}
         <div className="relative rounded-full bg-gray-400 h-32 w-32 overflow-hidden">
           <img
-            src="/avatar.jpg"
+            src={profilePic}
             alt="avatar"
+            onError={() => setProfilePic('/avatar.jpg')}
             className="h-full w-full object-cover"
           />
         </div>
+        <span className="mt-2 text-white font-medium">{displayName}</span>
+        
+        <input
+          type="file"
+          ref={fileInputRef}
+          onChange={handleImageUpload}
+          className="hidden"
+          accept="image/*"
+        />
         
         {/* Camera/Edit Button */}
-        <button className="mt-4 flex items-center gap-2 text-sm text-blue-500 hover:underline">
+        <button 
+          onClick={() => fileInputRef.current?.click()}
+          className="mt-4 flex items-center gap-2 text-sm text-blue-500 hover:underline"
+        >
+        {/* Camera/Edit Button */}
+        
           <Camera size={20} />
           Edit Profile Pic
         </button>

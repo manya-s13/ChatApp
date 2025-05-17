@@ -224,6 +224,45 @@ const Chat = () => {
       {/* Main content */}
       <div className="flex-1 flex flex-col overflow-hidden relative">
 
+        {/* Nav Bar */}
+      <div className="bg-[#212121] p-4 flex items-center justify-between shadow-md">
+        <div className="flex items-center">
+          <img src={currentUser?.profilePic || '/avatar.jpg'}  alt='avatar' height={50} width={50} className='rounded-full' />
+          <h2 className="font-medium pl-2">{currentUser?.name}</h2>
+        </div>
+
+        {/* Menu button */}
+        <div className="relative">
+          <button 
+            onClick={() => setMenuOpen(!menuOpen)}
+            className="p-2 rounded-full hover:bg-gray-700"
+          >
+            <MoreVertical size={20} />
+          </button>
+
+          {/* Dropdown menu */}
+          {menuOpen && (
+            <div className="absolute right-0 mt-2 w-48 bg-gray-600 rounded-md shadow-lg z-50 py-1">
+              <button 
+                onClick={handleEditProfile}
+                className="flex items-center w-full px-4 py-2 text-sm hover:bg-gray-700"
+              >
+                <User size={16} className="mr-2" />
+                Edit Profile
+              </button>
+              <button 
+                onClick={handleLogout}
+                className="flex items-center w-full px-4 py-2 text-sm hover:bg-gray-700 text-red-400"
+              >
+                <LogOut size={16} className="mr-2" />
+                Logout
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+
+
         {/* Header */}
         <div className="bg-[#3b3b3b] p-4 flex items-center justify-between shadow-md">
           {selectedUser ? (
@@ -243,35 +282,8 @@ const Chat = () => {
           )}
 
           {/* Menu button */}
-          <div className="relative">
-            <button 
-              onClick={() => setMenuOpen(!menuOpen)}
-              className="p-2 rounded-full hover:bg-gray-700"
-            >
-              <MoreVertical size={20} />
-            </button>
-            
-            {/* Dropdown menu */}
-            {menuOpen && (
-              <div className="absolute right-0 mt-2 w-48 bg-gray-600 rounded-md shadow-lg z-50 py-1">
-                <button 
-                  onClick={handleEditProfile}
-                  className="flex items-center w-full px-4 py-2 text-sm hover:bg-gray-700"
-                >
-                  <User size={16} className="mr-2" />
-                  Edit Profile
-                </button>
-                <button 
-                  onClick={handleLogout}
-                  className="flex items-center w-full px-4 py-2 text-sm hover:bg-gray-700 text-red-400"
-                >
-                  <LogOut size={16} className="mr-2" />
-                  Logout
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
+         
+        </div> 
 
         {/* Messages area */}
         <div className="flex-1 overflow-y-auto px-4 pt-4 pb-2 bg-black/60">

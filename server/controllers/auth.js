@@ -1,6 +1,8 @@
 import jwt from 'jsonwebtoken';
 import User from '../models/users.js';
 import  {isAuthenticated} from '../authMiddleware.js'
+import cloudinary from '../config/cloudinary.js';
+import fs from 'fs';
 
 export const registerUser = async (req, res) => {
     const { name, email, password } = req.body;
@@ -125,35 +127,90 @@ export const getUsers = async (req, res) => {
     }
 };
 
+// export const updateProfile = async (req, res) => {
+//   try {
+//     const { profilePic } = req.body;
+//     const userId = req.user._id;
+
+//     if (!profilePic) {
+//       return res.status(400).json({ message: "Profile pic is required" });
+//     }
+
+//     const uploadResponse = await cloudinary.uploader.upload(profilePic);
+//     const updatedUser = await User.findByIdAndUpdate(
+//       userId,
+//       { profilePic: uploadResponse.secure_url },
+//       { new: true }
+//     );
+
+//     res.status(200).json(updatedUser);
+//   } catch (error) {
+//     console.log("error in update profile:", error);
+//     res.status(500).json({ message: "Internal server error" });
+//   }
+// };
+
 export const updateProfile = async (req, res) => {
     const { name, email, password } = req.body;
     const userId = req.user._id;
-
-    if (!name || !email) {
-        return res.status(400).json({ message: "Name and email are required" });
+    let profilePicture;
+  
+    // Validate presence of update fields
+    if (!name && !email && !password && !req.file) {
+      return res.status(400).json({ message: "At least one field is required for update" });
     }
-
-    try {
-        const updatedUser = await User.findByIdAndUpdate(
-            userId,
-            { name, email, password },
-            { new: true }
-        );
-
-        if (!updatedUser) {
-            return res.status(404).json({ message: "User not found" });
-        }
-
-        res.status(200).json({
-            message: "Profile updated successfully",
-            user: {
-                _id: updatedUser._id,
-                name: updatedUser.name,
-                email: updatedUser.email
-            }
+  
+    // Validate email format if provided
+    if (email) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        return res.status(400).json({ message: "Invalid email format" });
+      }
+    }
+  
+    // Handle profile image upload to Cloudinary
+    if (req.file) {
+      try {
+        const result = await cloudinary.uploader.upload(req.file.path, {
+          folder: 'chat_app_profiles',
+          width: 150,
+          crop: "scale"
         });
+        profilePicture = result.secure_url;
+  
+        // Optional: Delete local file after upload
+        fs.unlinkSync(req.file.path);
+      } catch (error) {
+        return res.status(500).json({ message: "Failed to upload image", error: error.message });
+      }
+    }
+  
+    try {
+      const updateData = {
+        ...(name && { name }),
+        ...(email && { email }),
+        ...(password && { password }),
+        ...(profilePicture && { profilePicture })
+      };
+  
+      const updatedUser = await User.findByIdAndUpdate(userId, updateData, { new: true });
+  
+      if (!updatedUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+  
+      res.status(200).json({
+        message: "Profile updated successfully",
+        user: {
+          _id: updatedUser._id,
+          name: updatedUser.name,
+          email: updatedUser.email,
+          profilePicture: updatedUser.profilePicture
+        }
+      });
     } catch (error) {
-        res.status(500).json({ message: "Profile update failed", error: error.message });
+      console.error('Update error:', error);
+      res.status(500).json({ message: "Profile update failed", error: error.message });
     }
 };
   

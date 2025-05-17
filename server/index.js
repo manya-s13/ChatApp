@@ -7,7 +7,9 @@ import { connectDB } from './config/db.js';
 import cookieParser from 'cookie-parser';
 import {createServer} from 'http';
 import { Server } from 'socket.io';
+import path from 'path';
 
+dotenv.config();
 const app = express();
 const httpServer = createServer(app);
 const io = new Server(httpServer, {
@@ -18,7 +20,7 @@ const io = new Server(httpServer, {
 });
 app.use(express.json());
 
-dotenv.config();
+
 
 app.use(cors({
   origin: "http://localhost:5173", 
@@ -29,6 +31,8 @@ app.use(cors({
 app.use(cookieParser());
 
 app.use(express.urlencoded({ extended: true }));
+app.use('./uploads', express.static(path.join(process.cwd(), 'uploads')))
+
 
 io.on('connection', (socket) => {
   console.log('User connected:', socket.id);
